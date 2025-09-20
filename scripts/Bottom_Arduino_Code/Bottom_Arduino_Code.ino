@@ -50,7 +50,7 @@ void loop() {
     switch(command) {
       case 1:
         Serial.println("FLUTTERKICK");
-        flutterkick();
+        flutter_kick();
         break;
       case 2:
         Serial.println("HEARTPUMP");
@@ -86,7 +86,7 @@ int delay_time = 25;     // ms per frame
 int steps = int(duration / delay_time);
 int amplitude = KICK_ANGLE;
 
-void flutterkick() {
+void flutter_kick() {
   LLegServo.angleDistance(0);
   RLegServo.angleDistance(0);
   delay(200);

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from random import choice
-
+from typing import Any, Callable
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -9,8 +9,22 @@ from selenium.webdriver.common.by import By
 import os
 import time
 
+import signal
+import sys
 import serial.tools.list_ports
+import re
+import threading
+from flask import Flask, request
+import logging
+from logging.handlers import RotatingFileHandler
+import coloredlogs
 
+debug = False
+_logging = True
+RPiActive = False
+_shouldIShutDown = False
+
+# region Motion Mapping
 class MotionMap(Enum):
     IDLE = 1
     RAISE_EAR = 2
@@ -83,7 +97,9 @@ def emoji_to_motion(emoji : str) -> MotionMap:
      if emoji in EMOJI_MAP:
          actions = EMOTION_TO_MOTION_MAP[EMOJI_MAP[emoji][1]]
          return choice(actions)
-     return MotionMap.IDLE   
+     return MotionMap.IDLE
+
+# endregion
 
 # === Path to your HTML file ===
 html_file_path = r"D:\Documents\GitHub\xiaozhi-esp32-server\main\xiaozhi-server\test\test_page.html"  # Windows example
@@ -203,6 +219,310 @@ except KeyboardInterrupt as e:
     # === Close ===
     driver.quit()
 
+# region Logging
 
-def detect_ports():
-        
+# Ensure log directory exists
+os.makedirs("logs", exist_ok=True)
+
+# Configure logging
+logger = logging.getLogger("BunnyLog")
+logger.setLevel(logging.DEBUG if _logging else logging.INFO)
+
+# Remove default handlers (if any)
+for handler in logger.handlers[:]:
+    logger.removeHandler(handler)
+
+# Rotating file handler: 1 MB per file, keep 5 backups
+handler = RotatingFileHandler("logs/app.log", maxBytes=1_000_000, backupCount=5)
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+handler.setFormatter(formatter)
+
+# Add handler (avoid adding multiple times if reused)
+if not logger.handlers:
+    logger.addHandler(handler)
+
+# Colored console handler (using coloredlogs)
+coloredlogs.install(level='DEBUG' if _logging else 'INFO', logger=logger)
+
+# Prevent log messages from propagating to the root logger
+logger.propagate = False
+
+# endregion
+
+# region Arduino_Pi_Integration
+
+Devices = {
+    "OpenRB": {
+        "ids": ["2F5D:2202"],
+        "port": None,
+        "serial": None,
+        "processes": None,
+        "commands": None
+    },
+    "Nano": {
+        "ids": ["1A86:7523", "2341:805A"],
+        "port": None,
+        "serial": None,
+        "processes": None,
+        "commands": None
+    }
+}
+
+
+# region Serial Functions
+
+def check_ports():
+    ports = serial.tools.list_ports.comports()
+    if not ports:
+        logger.critical("No serial devices found.")
+        return
+
+    for port in ports:
+        match = re.search(r'VID:PID=([0-9A-Fa-f]+:[0-9A-Fa-f]+)', port.hwid).group(1)
+        for device in Devices.keys():
+            for id in Devices[device]["ids"]:
+                if match == id:
+                    if Devices[device]["port"] == None:
+                        Devices[device]["port"] = port.device
+                        break
+            else:
+                logger.info(f"{port} does not match any of the IDs. ({match})")
+
+    for device, details in Devices.items():
+        port = details["port"]
+        if port:
+            ser = open_serial_connection(port)
+            if ser:
+                details["serial"] = ser
+
+
+def open_serial_connection(port, baudrate: int = 115200, timeout: int = 1):
+    """
+    This will attempt to open the serial channel.
+
+    port:
+    baudrate (int): This command that will be interpreted by the device
+    timeout (int): Timeout
+    """
+    try:
+        ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
+        logger.info(f"Connected to {port}")
+        return ser
+    except serial.SerialException as e:
+        logger.critical(f"Error opening serial port {port}: {e}")
+        return None
+
+
+def sendCommand(command: str, deviceName: str):
+    """
+    This will attempt to send data to the device through serial.
+
+    command (str): This command that will be interpreted by the device seen on the processes file
+    deviceName (str): The device name which matches the on on the Devices Dictionary
+    """
+    _serial = Devices.get(deviceName).get("serial")
+    if _serial == None:
+        logger.critical(f"{deviceName} does not exist")
+        return False
+    try:
+        if command in Devices[deviceName]["commands"]:
+            if isinstance(Devices[deviceName]["commands"][command], dict):
+                Devices[deviceName]["commands"][command]["sent"] = True
+                data = Devices[deviceName]["commands"][command].get("command")
+                Devices[deviceName]["commands"][command]["timeout"] = 1.0
+                if data != None:
+                    bytes = _serial.write((str(data) + '\n').encode())
+                    logger.info("Sent: " + str(data) + " Size: " + str(bytes) + " bytes.")
+                    return True
+        return False
+    except Exception as e:
+        logger.critical(f"Send Command Error: {e}")
+        return False
+
+
+def recieveData(deviceName: str):
+    """
+    This will attempt to recieve data from the device.
+
+    deviceName (str): The device name which matches the on on the Devices Dictionary
+    """
+    _serial = Devices.get(deviceName).get("serial")
+    if _serial == None:
+        return None
+    response = _serial.readline().decode().strip()
+    if response:
+        logger.info("Received: " + response)
+        return response
+
+# endregion
+
+power_state = True
+
+
+def shutDownProcess():
+    global power_state
+    # Play shut down audio
+    if RPiActive:
+        os.system("sudo shutdown -h +1")
+    logger.critical("Shutting Down!")
+    power_state = False
+    if _shouldIShutDown:
+        time.sleep(30)
+        pid = os.getpid()
+        os.kill(pid, signal.SIGINT)  # Send SIGINT (equivalent to Ctrl+C)
+        sys.exit()
+
+
+OpenRBProcesses = {
+    cmd.name: (
+        None if cmd.value is None else {
+            "command": cmd.value,
+            "sent": False,
+            "timeout": 0,
+        }
+    )
+    for cmd in OpenRBCommand }
+
+OpenRBProcesses["OPENRB_FINISHED_SETUP"] =  None,
+}
+
+
+def OpenRBProcess(data=None):
+    if data != None:
+        if data in OpenRBProcesses:
+            if isinstance(OpenRBProcesses[data], dict):
+                if OpenRBProcesses[data]["sent"]:
+                    OpenRBProcesses[data]["sent"] = False
+            else:
+                OpenRBProcesses[data]()
+
+
+NanoProcesses = {
+    "LOW_BATT": shutDownProcess,
+    "FLUTTERKICK": {"command": 1, "sent": False, "timeout": 0},
+    "HEARTPUMP": {"command": 2, "sent": False, "timeout": 0},
+    "TOGGLESITSTAND": {"command": 3, "sent": False, "timeout": 0},
+    "STAND": {"command": 4, "sent": False, "timeout": 0},
+    "SIT": {"command": 5, "sent": False, "timeout": 0},
+}
+
+
+def NanoProcess(data=None):
+    if data != None:
+        if data in NanoProcesses:
+            if isinstance(NanoProcesses[data], dict):
+                if NanoProcesses[data]["sent"]:
+                    NanoProcesses[data]["sent"] = False
+            else:
+                NanoProcesses[data]()
+
+
+def init_Arduino_Pi_Integration():
+    Devices["OpenRB"]["processes"] = OpenRBProcess
+    Devices["OpenRB"]["commands"] = OpenRBProcesses
+    Devices["Nano"]["processes"] = NanoProcess
+    Devices["Nano"]["commands"] = NanoProcesses
+
+
+prev_timer = time.monotonic()
+
+
+def checkTimeOut():
+    global prev_timer
+    curr_timer = time.monotonic()
+    for device in Devices.keys():
+        for command in Devices[device]["commands"].keys():
+            if isinstance(Devices[device]["commands"][command], dict):
+                if Devices[device]["commands"][command]["sent"]:
+                    curr_timer = time.monotonic()
+                    interval = curr_timer - prev_timer
+                    Devices[device]["commands"][command]["timeout"] = Devices[device]["commands"][command][
+                                                                          "timeout"] - interval
+                    if Devices[device]["commands"][command]["timeout"] < 0:
+                        interval = curr_timer - prev_timer
+                        logger.critical(f"{command} Timed Out")
+                        Devices[device]["commands"][command]["sent"] = False
+    prev_timer = curr_timer
+
+def background_process():
+    while True:
+        for device_name in Devices.keys():
+            data = recieveData(device_name)
+            if data:
+                _function : Callable[...,Any] = Devices[device_name]["processes"]
+                _function(data)
+        checkTimeOut()
+
+
+# endregion
+
+# region Flask_Server
+app = Flask(__name__)
+
+
+@app.route('/move', methods=['GET'])
+def move():
+    direction = request.args.get('direction')
+    logger.info(f"[SIMULATION] Moving {direction}")
+    return f"Robot moving {direction}", 200
+
+
+@app.route('/heartbeat')
+def heartbeat():
+    result = sendCommand("HEARTPUMP", "Nano")
+    if not result:
+        logger.critical("Command not Sent")
+    logger.info("[SYSTEM] Heartbeat received")
+    return "Heartbeat OK"
+
+
+@app.route('/power', methods=['GET'])
+def power_control():
+    action = request.args.get('action')
+    if action == 'off':
+        logger.info("[SYSTEM] Shutdown command received")
+        shutDownProcess()
+        return "Shutdown initiated", 200
+    if action == 'status':
+        return f"Power state: {"On" if power_state else "Off"}", 200
+    return "Invalid power action!", 400
+
+
+@app.route('/volume')
+def volume_control():
+    level = request.args.get('level', type=int)
+    if level is not None and 0 <= level <= 100:
+        logger.info(f"[AUDIO] Volume set to {level}%")
+        if RPiActive:
+            os.system(f"amixer sset 'Master' {level}%")
+        return f"Volume set to {level}%"
+    return "Invalid volume level"
+
+# endregion
+import time
+from selenium.webdriver.common.by import By
+
+last_dt = None
+
+def run_log_monitor(driver):
+    global last_dt
+    try:
+        while True:
+            _log_entries = driver.find_elements(By.CSS_SELECTOR, "#logContainer .log-entry")
+            for _entry in _log_entries:
+                text = _entry.text.strip()
+                ts = parse_timestamp(text)
+                if ts and (last_dt is None or ts > last_dt):
+                    process_text(text)
+                    last_dt = ts
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        click_button("/html/body/div/div[4]/div[3]/div/button")
+        input("Press Enter to quit...")  # Keeps browser open before exit
+        driver.quit()
+
+
+if __name__ == "__main__":
+    run_log_monitor(driver)

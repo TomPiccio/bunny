@@ -1,2 +1,4 @@
 * (draft)
 chromedriver
+__pycache__/
+.venv
