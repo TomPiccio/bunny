@@ -9,6 +9,8 @@ from selenium.webdriver.common.by import By
 import os
 import time
 
+import serial.tools.list_ports
+
 class MotionMap(Enum):
     IDLE = 1
     RAISE_EAR = 2
@@ -200,3 +202,7 @@ except KeyboardInterrupt as e:
 
     # === Close ===
     driver.quit()
+
+
+def detect_ports():
+        
