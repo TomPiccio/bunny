@@ -248,6 +248,9 @@ def background_process():
                     Devices[device_name]["active"] = True
                 elif data == "IDLE":
                     Devices[device_name]["is_idle"] = True
+                elif data == "DEFAULT":
+                    Devices[device_name]["is_idle"] = True
+                    logger.warning(f"Recent Action was not performed @ {device_name}")
                 else:
                     _function = Devices[device_name]["processes"]
                     _function(data)

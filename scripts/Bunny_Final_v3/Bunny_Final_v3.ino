@@ -60,23 +60,23 @@ void action(int value){
       motions.idle();
       break;
     case 1:
-      DEBUG_SERIAL.println("RAISE");
+      DEBUG_SERIAL.println("RAISE_EAR");
       motions.raiseEar();
       break;
     case 2:
-      DEBUG_SERIAL.println("COVER EYES");
+      DEBUG_SERIAL.println("COVER_EYES");
       motions.coverEyes();
       break;
     case 3:
-      DEBUG_SERIAL.println("FORWARD");
+      DEBUG_SERIAL.println("FORWARD_EAR");
       motions.forwardEar();
       break;
     case 4:
-      DEBUG_SERIAL.println("BEND");
+      DEBUG_SERIAL.println("BEND_EAR");
       motions.bendEar();
       break;
     case 5: 
-      DEBUG_SERIAL.println("FLAP");
+      DEBUG_SERIAL.println("FLAP_EAR");
       for(int i = 0; i < 5; i++){
         motions.flapEarA();
         motions.updateEar(300);
@@ -101,9 +101,13 @@ void action(int value){
       motions.updateEar(2000);
       break;
     case 9:
-      DEBUG_SERIAL.println("SADSHAKE");
+      DEBUG_SERIAL.println("SAD_SHAKE");
       motions.look_down();
       motions.shake();
+      break;
+    case 10:
+      DEBUG_SERIAL.println("BEND_HEAD");
+      motions.look_down();
       break;
     case -1:
       DEBUG_SERIAL.println("DETACH");

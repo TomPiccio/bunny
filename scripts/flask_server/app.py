@@ -1,5 +1,6 @@
-from flask import Flask, request
-import signal
+from flask import request
+import requests
+import uuid
 import time
 import sys
 import os
@@ -11,8 +12,8 @@ from utils import setup_logger
 from hardware import sendCommand
 from common import shutDownProcess, get_power_state, get_RPiActive
 
-logger = setup_logger("logs")
-logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__file__))[0]}.py)")
+_logger = setup_logger("logs")
+_logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__file__))[0]}.py)")
 
 SYSTEM_UUID = str(uuid.uuid4())
 

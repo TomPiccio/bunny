@@ -79,7 +79,8 @@ void loop() {
         stand_sit(-1);
         break;
       default:
-        Serial.println("INVALID");
+        Serial.println("DEFAULT");
+        idle();
         break;
     }
 

@@ -5,9 +5,10 @@ class MotionMap(Enum):
     '''
     Motion for the OpenRB Top Arduino
     '''
-    IDLE = 1
-    RAISE_EAR = 2
-    COVER_EYES = 3
+    IDLE = 0
+    RAISE_EAR = 1
+    COVER_EYES = 2
+    FORWARD_EAR = 3
     BEND_EAR = 4
     FLAP_EAR = 5 # Flap the lower ear
     NOD = 6
@@ -15,9 +16,10 @@ class MotionMap(Enum):
     PET = 8
     SAD_SHAKE = 9 # Bend Down Hand and shake
     BEND_HEAD = 10
+    #TODO: Not yet implemented EAR_WAVE DROP_EARS SLOW_NOD
     EAR_WAVE = 11 # Slowly wave the lower portion of the Ears
     DROP_EARS = 12 # Raise Ear slowly and drop it
-    SLOW_NOD = 13
+    SLOW_NOD  = 13
     DETACH = -1
 
 class BottomMotionMap(Enum):
