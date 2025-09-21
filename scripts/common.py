@@ -22,3 +22,11 @@ def shutDownProcess():
         pid = os.getpid()
         os.kill(pid, signal.SIGINT)  # Send SIGINT (equivalent to Ctrl+C)
         sys.exit()
+
+def get_power_state():
+    return power_state
+
+def set_power_state(value : bool):
+    global power_state
+    power_state = value
+

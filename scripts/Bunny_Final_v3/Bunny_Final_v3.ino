@@ -6,6 +6,9 @@
 
 Motions motions;
 
+unsigned long previousMillis = 0;
+bool is_idle = false;
+
 void setup() {
   DEBUG_SERIAL.begin(115200);
   motions.begin();
@@ -19,7 +22,20 @@ void loop() {
   }
 
   motions.update_loop();
+  print_response();
   delay(100);
+}
+
+void print_response(){
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= 10000) {
+    previousMillis = currentMillis;
+    DEBUG_SERIAL.println("RESPONSE");
+    if(motions.isIdle){
+        DEBUG_SERIAL.println("IDLE");
+    }
+  }
 }
 
 //0 idle
@@ -35,7 +51,9 @@ void loop() {
 //-1 detach all
 
 void action(int value){
-  motions.set_is_idle(false);
+  if command != 0{
+    motions.set_is_idle(false);
+  }
   switch (value) {
     case 0:
       DEBUG_SERIAL.println("IDLE");

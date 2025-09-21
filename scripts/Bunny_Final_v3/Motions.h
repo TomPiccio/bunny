@@ -46,11 +46,10 @@ private:
     unsigned long curr_time = 0;
     unsigned long prev_time = 0;
     long cooldown = 0;
-    bool isIdle = false;
 
 public:
     Motions();
-
+    bool isIdle = false;
     void begin();
     bool arePositionsValid(int positions[3]);
     void setREar(int positions[3], int side = 0);

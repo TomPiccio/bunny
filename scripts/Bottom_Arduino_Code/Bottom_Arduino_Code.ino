@@ -40,6 +40,8 @@ void setup() {
   Serial.println("BOTTOM_INIT");
 }
 
+bool is_idle = false;
+unsigned long previousMillis = 0;
 void loop() {
   // put your main code here, to run repeatedly:
   if(Serial.available() > 0){
@@ -47,17 +49,25 @@ void loop() {
     input.trim();
     int command = input.toInt();
 
+    if command != 0{
+      is_idle = false;
+    }
+
     switch(command) {
+      case 0:
+        Serial.println("IDLE");
+        idle();
+        break;
       case 1:
-        Serial.println("FLUTTERKICK");
+        Serial.println("FLUTTER_KICK");
         flutter_kick();
         break;
       case 2:
-        Serial.println("HEARTPUMP");
+        Serial.println("HEART_PUMP");
         HeartPump();
         break;
       case 3: // Toggle between standing and sitting
-        Serial.println("TOGGLESITSTAND");
+        Serial.println("TOGGLE_SIT_STAND");
         stand_sit(0);
         break;
       case 4: // Stand
@@ -74,9 +84,20 @@ void loop() {
     }
 
     relax();
+    Serial.println("IDLE");
   }
   inputs();
   delay(10);
+
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= 10000) {
+    previousMillis = currentMillis;
+    Serial.println("RESPONSE");
+    if(is_idle){
+        Serial.println("IDLE");
+    }
+  }
 }
 #define KICK_ANGLE 30
 #define PI 3.14159265
@@ -121,6 +142,10 @@ void flutter_kick() {
   //LLegServo.detach();
   //RLegServo.detach();
 }
+
+void idle(){is_idle = true;}
+
+
 
 void HeartPump(){
   digitalWrite(HEART_PUMP,HIGH);
@@ -178,7 +203,7 @@ void inputs() {
     }
   }
   if(heartPressed && !prevHeartPressed){
-    Serial.println("PRESS_HEART");
+    Serial.println("HEART_PRESSED");
   }
   prevHeartPressed = heartPressed;
 

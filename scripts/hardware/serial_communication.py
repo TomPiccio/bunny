@@ -27,8 +27,6 @@ def set_BunnyDriver(__BunnyDriver):
 def HEART_PRESSED_BunnyDriver():
     _BunnyDriver.toggle_recording(True)
 
-
-
 OpenRBProcesses= {
     cmd.name: (
         None if cmd.value is None else {
@@ -74,9 +72,6 @@ def NanoProcess(data=None):
                 fxn: Callable[..., Any] | None = NanoProcesses[data]
                 fxn()
 
-def emoji_to_command(emoji: str):
-    _top_motion_map, _bottom_motion_map = emoji_to_motion_map(emoji)
-
 
 Devices = {
     "OpenRB": {
@@ -87,7 +82,8 @@ Devices = {
         "commands": OpenRBProcesses,
         "connection_check_cooldown" : 10.0,
         "active" : False,
-        "prev_active" : False
+        "prev_active" : False,
+        "is_idle" : True
     },
     "Nano": {
         "ids": ["1A86:7523", "2341:805A"],
@@ -97,7 +93,8 @@ Devices = {
         "commands": NanoProcesses,
         "connection_check_cooldown" : 10.0,
         "active" : False,
-        "prev_active" : False
+        "prev_active" : False,
+        "is_idle" : True
     }
 }
 
@@ -170,6 +167,14 @@ def sendCommand(command : str, device_name: str):
         logger.critical(f"Send Command Error: {e}")
         return False
 
+def emoji_to_command(emoji: str):
+    _top_motion_map, _bottom_motion_map = emoji_to_motion_map(emoji)
+    if _top_motion_map != MotionMap.IDLE:
+        Devices["OpenRB"]["is_idle"] = False
+        sendCommand(_top_motion_map.name,"OpenRB")
+    if _bottom_motion_map != BottomMotionMap.IDLE:
+        Devices["Nano"]["is_idle"] = False
+        sendCommand(_bottom_motion_map.name, "Nano")
 
 def receiveData(device_name: str):
     """
@@ -234,7 +239,6 @@ def checkTimeOut():
     prev_timer = curr_timer
 
 
-
 def background_process():
     while True:
         for device_name in Devices.keys():
@@ -242,6 +246,8 @@ def background_process():
             if data:
                 if data == "RESPONSE":
                     Devices[device_name]["active"] = True
+                elif data == "IDLE":
+                    Devices[device_name]["is_idle"] = True
                 else:
                     _function = Devices[device_name]["processes"]
                     _function(data)

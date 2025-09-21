@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from datetime import datetime
+from configparser import ConfigParser, ExtendedInterpolation
 import http.server
 import socketserver
 import threading
@@ -28,19 +29,28 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 class BunnyDriver:
     def __init__(self):
         self.PORT = 8006
-        self.html_file_path = os.path.join(os.path.abspath(__file__), r"/xiaozhi-esp32-server/main/xiaozhi-server/test")
+        self.html_file_path = os.path.join(os.path.abspath(__file__), r"../../xiaozhi-esp32-server/main/xiaozhi-server/test")
         self.chromedriver_path = r"/usr/bin/chromedriver"
         self.chrome_binary_path = r"/usr/bin/chromium"
         self.alt_chromedriver_path = r"/chromedriver/chromedriver-win32/chromedriver.exe"  # update this
         self.alt_chrome_binary_path = r"D:\Downloads\chrome-win32\chrome-win32\chrome.exe"
-        self.ota_server = "http://47.84.198.143:8003/xiaozhi/ota/"
-        self.web_socket = "ws://47.84.198.143:8000/xiaozhi/v1/"
+        self.ota_server, self.web_socket = self.config_parsing()
         self.driver = None
 
         self.last_dt = None
         self.start = False
         self.prev_start = False
         self.audio_count = 0
+
+    @staticmethod
+    def config_parsing():
+        _config = ConfigParser(interpolation=ExtendedInterpolation())
+        _config.read(os.path.join(os.path.abspath(__file__),"../../config.ini"))
+        section = _config["Default"]
+        _ip_server = section["ip_server"]
+        _ota_server = section["ota_server"].replace("{ip_server}",_ip_server)
+        _web_socket = section["web_socket"].replace("{ip_server}",_ip_server)
+        return _ota_server, _web_socket
 
     def start_server(self):
         with socketserver.TCPServer(("", self.PORT), Handler) as httpd:
@@ -61,7 +71,7 @@ class BunnyDriver:
             options = Options()
             options.binary_location = self.chrome_binary_path
             options.add_argument("--no-sandbox")
-            options.add_argument("--user-data-dir=/home/bmopi/.config/chromium/SeleniumProfile")
+            options.add_argument("--user-data-dir={/home/bmopi/.config/chromium/SeleniumProfile}")
             service = Service(self.chromedriver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
 
@@ -198,4 +208,3 @@ class BunnyDriver:
                 self.close_driver()
 
 #TODO: Play initial Audio
-#TODO: Initiate via Heart Beat

@@ -1,4 +1,11 @@
+*
+!*/
 * (draft)
 chromedriver
 __pycache__/
 .venv
+!.gitmodules
+!config_template.ini
+!README.md
+!requirements.txt
+!.gitignore

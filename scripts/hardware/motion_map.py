@@ -24,9 +24,10 @@ class BottomMotionMap(Enum):
     '''
     Motion for the Bottom Arduino
     '''
-    FLUTTERKICK = 1
-    HEARTPUMP = 2
-    TOGGLESITSTAND = 3
+    IDLE = 0
+    FLUTTER_KICK = 1
+    HEART_PUMP = 2
+    TOGGLE_SIT_STAND = 3
     STAND = 4
     SIT = 5
 
@@ -83,12 +84,15 @@ EMOJI_MAP = {
 }
 
 def emoji_to_motion_map(emoji: str):
-    #TODO: Integrate with Bottom Arduino
     _top_motion_map = None
     _bottom_motion_map = None
     if emoji in EMOJI_MAP:
+        #Top Actions
         actions = EMOTION_TO_MOTION_MAP[EMOJI_MAP[emoji][1]]
         _top_motion_map = choice(actions)
-    _top_motion_map = MotionMap.IDLE
-
+        # TODO: Integrate with Bottom Arduino
+    else:
+        _top_motion_map = MotionMap.IDLE
+    #TODO: temporary default
+    _bottom_motion_map = None
     return _top_motion_map, _bottom_motion_map

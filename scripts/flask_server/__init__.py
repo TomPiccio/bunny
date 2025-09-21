@@ -1,6 +1,6 @@
 # app/__init__.py
 from flask import Flask
-from .app import register_routes
+from .app import register_routes, post_heartbeat
 import sys
 import os
 
