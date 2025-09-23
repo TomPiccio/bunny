@@ -178,7 +178,7 @@ void HeartPump() {
     // "Dub"
     await_heart_low();
     digitalWrite(HEART_PUMP, HIGH);
-    delay(80);                  
+    delay(80);
     digitalWrite(HEART_PUMP, LOW);
     delay(500);                // longer rest before next heartbeat
     await_heart_low();
