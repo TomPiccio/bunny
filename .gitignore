@@ -10,3 +10,4 @@ __pycache__/
 !requirements.txt
 !.gitignore
 !setup.bat
+!setup.sh
