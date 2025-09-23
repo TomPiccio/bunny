@@ -31,10 +31,11 @@ class BunnyDriver:
         self.PORT = 8006
         self.html_file_path = os.path.join(os.path.dirname(__file__),\
                                            r"../../xiaozhi-esp32-server/main/xiaozhi-server/test/test_page.html")
-        #self.chromedriver_path = r"/usr/bin/chromedriver"
-        #self.chrome_binary_path = r"/usr/bin/chromium"
-        self.chromedriver_path = r"D:\Documents\GitHub\bunny\chromedriver\chromedriver-win32/chromedriver.exe"  # update this
-        self.chrome_binary_path = r"D:\Downloads\chrome-win32\chrome-win32\chrome.exe"
+        self.chromedriver_path = r"/usr/bin/chromedriver"
+        self.chrome_binary_path = r"/usr/bin/chromium"
+        # When using PC instead of RPi
+        #self.chromedriver_path = r"D:\Documents\GitHub\bunny\chromedriver\chromedriver-win32/chromedriver.exe"  # update this
+        #self.chrome_binary_path = r"D:\Downloads\chrome-win32\chrome-win32\chrome.exe"
         self.ota_server, self.web_socket = self.config_parsing()
         self.driver = None
 
@@ -44,6 +45,7 @@ class BunnyDriver:
         self.audio_count = 0
         self.successful_launch = False
         self.is_connected = False
+        self.last_used = 0
 
     @staticmethod
     def config_parsing():
@@ -97,6 +99,15 @@ class BunnyDriver:
         input_field.send_keys(input_text)
         time.sleep(0.5)
 
+    def is_ws_connected(self): #checks if websocket is still connected
+        try:
+            element = self.driver.find_element(By.XPATH, "/html/body/div/div[3]/h2/span/span[2]/span")
+            text = element.text.strip()
+            return "已连接" in text
+        except Exception:
+            # element not found or any other error
+            return False
+
     def click_button(self, x_path: str, button_text: str | None = None) -> None:
         button = self.driver.find_element(By.XPATH, x_path)
         print(button.text)
@@ -117,16 +128,24 @@ class BunnyDriver:
         self.click_button("/html/body/div/div[4]/div[2]/div/button", "发送") # Send Message
 
     def toggle_recording(self, toggle : bool):
-        self.click_button("/html/body/div/div[4]/div[1]/button[2]", "语音消息")  # Voice Message Menu
-        # Start Recording: "开始录音" Stop Recording: "停止录音"
-        self.click_button("/html/body/div/div[4]/div[3]/div/button", "开始录音" if toggle else "停止录音")
+
+        def click_toggle():
+            self.click_button("/html/body/div/div[4]/div[1]/button[2]", "语音消息")  # Voice Message Menu
+            # Start Recording: "开始录音" Stop Recording: "停止录音"
+            self.click_button("/html/body/div/div[4]/div[3]/div/button", "开始录音" if toggle else "停止录音")
+
+        if toggle:
+            if not self.is_ws_connected():
+                self.initial_navigation()
+                self.send_message("你好")
+            click_toggle()
+        else:
+            click_toggle()
 
     def initial_navigation(self):
         self.write_input_field("/html/body/div/div[3]/div/input[1]", self.ota_server)
         self.write_input_field("/html/body/div/div[3]/div/input[2]", self.web_socket)
         self.click_button("/html/body/div/div[3]/div/button[1]", "连接") # Connect to WS driver
-        self.toggle_recording(True)
-        self.send_message("你好") # Hello
 
     @staticmethod
     def parse_timestamp(_text, _last_dt=None):
@@ -190,7 +209,9 @@ class BunnyDriver:
             elif ":" in _text.split("]")[-1]:
                 if not "undefined" in _text:
                     logger.info(_text.split(":")[-1])
+                    self.toggle_recording(False)
             self.prev_start = self.start
+            self.last_used = time.time()
         except Exception as _e:
             logger.error(_e)
             return None
@@ -217,7 +238,10 @@ class BunnyDriver:
     def execute(self):
         if self.successful_launch:
             try:
+                self.last_used = time.time()
                 self.initial_navigation()
+                self.toggle_recording(True)
+                self.send_message("你好")  # Hello
                 while True:
                     log_entries = self.driver.find_elements(By.CSS_SELECTOR, "#logContainer .log-entry")
                     for entry in log_entries:
@@ -229,7 +253,9 @@ class BunnyDriver:
                             self.process_text(text)
                             self.last_dt = ts
                     self.clear_processed_logs(50)
-
+                    if time.time() - self.last_used > 90.0:
+                        #inactive for 1:30
+                        self.toggle_recording(False)
                     time.sleep(0.5)
             except KeyboardInterrupt as e:
                 self.close_driver()
