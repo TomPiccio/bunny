@@ -9,6 +9,9 @@ Motions motions;
 unsigned long previousMillis = 0;
 bool is_idle = false;
 
+//Prevent certain debug statements from printing
+bool debug = false;
+
 void setup() {
   DEBUG_SERIAL.begin(115200);
   motions.begin();
@@ -51,7 +54,7 @@ void print_response(){
 //-1 detach all
 
 void action(int value){
-  if command != 0{
+  if (value != 0){
     motions.set_is_idle(false);
   }
   switch (value) {
@@ -79,9 +82,9 @@ void action(int value){
       DEBUG_SERIAL.println("FLAP_EAR");
       for(int i = 0; i < 5; i++){
         motions.flapEarA();
-        motions.updateEar(300);
+        motions.updateEar(300,700);
         motions.flapEarB();
-        motions.updateEar(300);
+        motions.updateEar(300,700);
       }
       break;
     case 6:

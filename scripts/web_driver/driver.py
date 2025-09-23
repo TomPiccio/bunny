@@ -16,7 +16,7 @@ if __name__ == "__main__" or os.path.dirname(sys.argv[0])==os.path.dirname(__fil
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from utils import setup_logger
-from hardware.motion_map import emoji_to_motion
+from hardware import emoji_to_command
 
 logger = setup_logger("logs")
 logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__file__))[0]}.py)")
@@ -29,11 +29,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 class BunnyDriver:
     def __init__(self):
         self.PORT = 8006
-        self.html_file_path = os.path.join(os.path.abspath(__file__), r"../../xiaozhi-esp32-server/main/xiaozhi-server/test")
-        self.chromedriver_path = r"/usr/bin/chromedriver"
-        self.chrome_binary_path = r"/usr/bin/chromium"
-        self.alt_chromedriver_path = r"/chromedriver/chromedriver-win32/chromedriver.exe"  # update this
-        self.alt_chrome_binary_path = r"D:\Downloads\chrome-win32\chrome-win32\chrome.exe"
+        self.html_file_path = os.path.join(os.path.dirname(__file__),\
+                                           r"../../xiaozhi-esp32-server/main/xiaozhi-server/test/test_page.html")
+        #self.chromedriver_path = r"/usr/bin/chromedriver"
+        #self.chrome_binary_path = r"/usr/bin/chromium"
+        self.chromedriver_path = r"D:\Documents\GitHub\bunny\chromedriver\chromedriver-win32/chromedriver.exe"  # update this
+        self.chrome_binary_path = r"D:\Downloads\chrome-win32\chrome-win32\chrome.exe"
         self.ota_server, self.web_socket = self.config_parsing()
         self.driver = None
 
@@ -41,11 +42,15 @@ class BunnyDriver:
         self.start = False
         self.prev_start = False
         self.audio_count = 0
+        self.successful_launch = False
+        self.is_connected = False
 
     @staticmethod
     def config_parsing():
         _config = ConfigParser(interpolation=ExtendedInterpolation())
-        _config.read(os.path.join(os.path.abspath(__file__),"../../config.ini"))
+        config_path = os.path.join(os.path.dirname(__file__),r"..\..\config.ini")
+        logger.info(f"config.ini exists? {os.path.exists(config_path)}")
+        _config.read(config_path)
         section = _config["Default"]
         _ip_server = section["ip_server"]
         _ota_server = section["ota_server"].replace("{ip_server}",_ip_server)
@@ -53,8 +58,10 @@ class BunnyDriver:
         return _ota_server, _web_socket
 
     def start_server(self):
+        os.chdir(os.path.dirname(self.html_file_path))
+
         with socketserver.TCPServer(("", self.PORT), Handler) as httpd:
-            logger.info(f"Serving at http://localhost:{self.PORT}")
+            logger.info(f"Serving at http://localhost:{self.PORT} from {os.path.dirname(self.html_file_path)}")
             httpd.serve_forever()
 
     def init_driver(self):
@@ -62,26 +69,27 @@ class BunnyDriver:
             server_thread = threading.Thread(target=self.start_server, daemon=True)
             server_thread.start()
 
+            logger.info("HTTP server running")
+
             time.sleep(2)
 
             # Make it a proper file URL
-            file_url = f"http://localhost:8006/{os.path.abspath(self.html_file_path)}"
+            file_url = f"http://localhost:8006/{os.path.basename(self.html_file_path)}"
 
             # === Chrome options ===
             options = Options()
             options.binary_location = self.chrome_binary_path
             options.add_argument("--no-sandbox")
-            options.add_argument("--user-data-dir={/home/bmopi/.config/chromium/SeleniumProfile}")
+            #options.add_argument("--user-data-dir={/home/bmopi/.config/chromium/SeleniumProfile}")
             service = Service(self.chromedriver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
 
             # === Open the HTML file ===
             self.driver.get(file_url)
-            successful_launch = True
+            self.successful_launch = True
         except Exception as _e:
             logger.error(_e)
-            successful_launch = False
-        return successful_launch
+            self.successful_launch = False
 
     def write_input_field(self, x_path: str, input_text: str) -> None:
         input_field = self.driver.find_element(By.XPATH, x_path)
@@ -92,6 +100,10 @@ class BunnyDriver:
     def click_button(self, x_path: str, button_text: str | None = None) -> None:
         button = self.driver.find_element(By.XPATH, x_path)
         print(button.text)
+        try:
+            self.driver.execute_script("arguments[0].disabled = false;", button)
+        except:
+            pass
         if button_text is None or button.text == button_text:
             button.click()
             time.sleep(0.5)
@@ -124,21 +136,35 @@ class BunnyDriver:
         """
 
         try:
-            m = re.search(r"\[(\d+):(\d+):(\d+)\.(\d+)\]", _text.lower())
-            if not m:
-                return None
-
-            hour, minute, second, millis = map(int, m.groups())
+            m = re.search(r"\[(\d+):(\d+):(\d+)\.(\d+)\]", _text)
+            if m:
+                hour, minute, second, millis = map(int, m.groups())
+            else:
+                # Try 12-hour format with AM/PM
+                m = re.search(r"\[(\d+):(\d+):(\d+)\s*(AM|PM)\.(\d+)\]", _text, re.IGNORECASE)
+                if not m:
+                    return None
+                hour, minute, second, ampm, millis = m.groups()
+                hour = int(hour)
+                minute = int(minute)
+                second = int(second)
+                millis = int(millis)
+                if ampm.upper() == "PM" and hour != 12:
+                    hour += 12
+                elif ampm.upper() == "AM" and hour == 12:
+                    hour = 0
 
             # Start with same date as _last_dt if available
-            base_date = datetime(2000, 1, 1)
             if _last_dt:
                 base_date = _last_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            else:
+                base_date = datetime(2000, 1, 1)
 
             _ts = base_date.replace(hour=hour, minute=minute, second=second, microsecond=millis * 1000)
 
             # If _ts is earlier than _last_dt, assume midnight rollover → add one day
-            if hour == 0 and _last_dt.hour > hour:
+            if hour == 0 and _last_dt and _last_dt.hour > hour:
                 _ts = _ts.replace(day=_last_dt.day + 1)
 
             return _ts
@@ -150,7 +176,7 @@ class BunnyDriver:
         try:
             if '大模型回复' in _text:
                 logger.info(_text[-1])
-                emoji_to_motion(_text[-1])
+                emoji_to_command(_text[-1])
                 self.start = True
             elif '服务器发送语音段: undefined' in _text:
                 self.start = False
@@ -159,6 +185,8 @@ class BunnyDriver:
                     self.audio_count = 0
             elif '开始播放' in _text and self.start:
                 self.audio_count += 1
+            elif '已断开连接'  in _text: #Disconnected
+                self.is_connected = False
             elif ":" in _text.split("]")[-1]:
                 if not "undefined" in _text:
                     logger.info(_text.split(":")[-1])
@@ -187,8 +215,7 @@ class BunnyDriver:
         self.driver.quit()
 
     def execute(self):
-        successful_launch =self.init_driver()
-        if successful_launch:
+        if self.successful_launch:
             try:
                 self.initial_navigation()
                 while True:
@@ -206,5 +233,7 @@ class BunnyDriver:
                     time.sleep(0.5)
             except KeyboardInterrupt as e:
                 self.close_driver()
+        else:
+            logger.error("Can't launch Bunny Driver Execute")
 
 #TODO: Play initial Audio

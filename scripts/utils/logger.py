@@ -13,7 +13,7 @@ def setup_logger(log_directory="logs"):
     logger.setLevel(logging.DEBUG)
 
     handler = RotatingFileHandler(
-        os.path.join(log_directory, "app.log"), maxBytes=1_000_000, backupCount=5
+        os.path.join(log_directory, "app.log"), maxBytes=1_000_000, backupCount=5, encoding='utf-8'
     )
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

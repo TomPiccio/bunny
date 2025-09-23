@@ -22,6 +22,7 @@ logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__fi
 _BunnyDriver = None
 
 def set_BunnyDriver(__BunnyDriver):
+    global _BunnyDriver
     _BunnyDriver = __BunnyDriver
 
 def HEART_PRESSED_BunnyDriver():
@@ -86,7 +87,7 @@ Devices = {
         "is_idle" : True
     },
     "Nano": {
-        "ids": ["1A86:7523", "2341:805A"],
+        "ids": ["1A86:7523", "2341:805A", "2341:8057"],
         "port": None,
         "serial": None,
         "processes": NanoProcess,
@@ -107,20 +108,23 @@ def check_ports():
     for port in ports:
         match = re.search(r'VID:PID=([0-9A-Fa-f]+:[0-9A-Fa-f]+)', port.hwid).group(1)
         for device in Devices.keys():
-            for id in Devices[device]["ids"]:
-                if match == id:
-                    if Devices[device]["port"] == None:
-                        Devices[device]["port"] = port.device
-                        break
-            else:
-                logger.info(f"{port} does not match any of the IDs. ({match})")
+            if Devices[device]["serial"] is None:
+                for id in Devices[device]["ids"]:
+                    if match == id:
+                        if Devices[device]["port"] == None:
+                            Devices[device]["port"] = port.device
+                            break
+                else:
+                    continue
+                    #logger.info(f"{port} does not match any of the IDs. ({match})")
 
     for device, details in Devices.items():
-        port = details["port"]
-        if port:
-            ser = open_serial_connection(port)
-            if ser:
-                details["serial"] = ser
+        if details["serial"] is None:
+            port = details["port"]
+            if port:
+                ser = open_serial_connection(port)
+                if ser:
+                    details["serial"] = ser
 
 
 def open_serial_connection(port, baudrate: int = 115200, timeout: int = 1):
@@ -148,6 +152,7 @@ def sendCommand(command : str, device_name: str):
     deviceName (str): The device name which matches on the Devices Dictionary
     """
     _serial = Devices.get(device_name).get("serial")
+    logger.info(f"Sending command: {command} to {device_name}")
     if _serial is None:
         logger.critical(f"{device_name} does not exist")
         return False
@@ -169,10 +174,10 @@ def sendCommand(command : str, device_name: str):
 
 def emoji_to_command(emoji: str):
     _top_motion_map, _bottom_motion_map = emoji_to_motion_map(emoji)
-    if _top_motion_map != MotionMap.IDLE:
+    if _top_motion_map != MotionMap.IDLE and _top_motion_map:
         Devices["OpenRB"]["is_idle"] = False
         sendCommand(_top_motion_map.name,"OpenRB")
-    if _bottom_motion_map != BottomMotionMap.IDLE:
+    if _bottom_motion_map != BottomMotionMap.IDLE and _bottom_motion_map:
         Devices["Nano"]["is_idle"] = False
         sendCommand(_bottom_motion_map.name, "Nano")
 
@@ -184,6 +189,7 @@ def receiveData(device_name: str):
     """
     _serial = Devices.get(device_name).get("serial")
     if _serial is None:
+        check_ports()
         return None
     response = _serial.readline().decode().strip()
     if response:
@@ -240,6 +246,7 @@ def checkTimeOut():
 
 
 def background_process():
+    check_ports()
     while True:
         for device_name in Devices.keys():
             data = receiveData(device_name)

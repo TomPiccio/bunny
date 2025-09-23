@@ -257,7 +257,7 @@ void Motions::updateEar(int interval, int step_size){
     leftEar.update(step_size);
     rightEar.update(step_size);
     delay(step_size < 400 ? 50 : 10);
-    DEBUG_SERIAL.println(num);
+    //DEBUG_SERIAL.println(num);
   }
 }
 
@@ -283,7 +283,7 @@ void Motions::update_loop(){
 
     if(cooldown > 0){
         cooldown -= curr_time - prev_time;
-        DEBUG_SERIAL.println(cooldown);
+        //DEBUG_SERIAL.println(cooldown);
     }
     else if(!isIdle){
         if(toRotateForward){
@@ -301,7 +301,7 @@ void Motions::update_loop(){
             eyeCover = false;
         }
         else{
-            DEBUG_SERIAL.println("Cooldown Done!");
+            //DEBUG_SERIAL.println("Cooldown Done!");
             idle();
         }
     }

@@ -3,11 +3,12 @@
 #define LEFT_LEG_PIN 2
 #define RIGHT_LEG_PIN 3
 
-#define L_LEG_IDLE 0
-#define R_LEG_IDLE 175
-#define FOAM_OFFSET 5
-AX8601 LLegServo(LEFT_LEG_PIN, L_LEG_IDLE+FOAM_OFFSET, L_LEG_IDLE+FOAM_OFFSET, 70+FOAM_OFFSET);
-AX8601 RLegServo(RIGHT_LEG_PIN, R_LEG_IDLE-FOAM_OFFSET, R_LEG_IDLE-FOAM_OFFSET, R_LEG_IDLE-FOAM_OFFSET-70);
+#define L_LEG_IDLE 5
+#define R_LEG_IDLE 180
+#define FOAM_OFFSET 15
+#define STAND_OFFSET 75
+AX8601 LLegServo(LEFT_LEG_PIN, L_LEG_IDLE+FOAM_OFFSET, L_LEG_IDLE+FOAM_OFFSET, L_LEG_IDLE+STAND_OFFSET);
+AX8601 RLegServo(RIGHT_LEG_PIN, R_LEG_IDLE-FOAM_OFFSET, R_LEG_IDLE-FOAM_OFFSET, R_LEG_IDLE-STAND_OFFSET);
 
 long timer;
 unsigned long current_time, previous_time;
@@ -49,7 +50,7 @@ void loop() {
     input.trim();
     int command = input.toInt();
 
-    if command != 0{
+    if (command != 0){
       is_idle = false;
     }
 
@@ -146,25 +147,56 @@ void flutter_kick() {
 
 void idle(){is_idle = true;}
 
-
-
-void HeartPump(){
+/*Use on standard heart apparatus
+void HeartPump(){ 
   digitalWrite(HEART_PUMP,HIGH);
-  delay(500);
+  delay(10);
   digitalWrite(HEART_PUMP,LOW);
+  Serial.println("HEART_PUMPED");
+}
+*/
+
+void await_heart_low(){
+  unsigned long start_time = millis();
+  digitalWrite(HEART_PUMP, LOW);
+  while(digitalRead(HEART_SIGNAL) == HIGH && millis() - start_time < 3000){
+      delay(10);
+  }
+}
+
+//Used this because the motor is continuous
+void HeartPump() {
+  await_heart_low();
+  delay(1000);
+  for (int i = 0; i < 5; i++) {
+    // "Lub"
+    digitalWrite(HEART_PUMP, HIGH);
+    delay(50);                  // short pulse
+    digitalWrite(HEART_PUMP, LOW);
+    delay(100);                 // small gap between lub and dub
+
+    // "Dub"
+    await_heart_low();
+    digitalWrite(HEART_PUMP, HIGH);
+    delay(80);                  
+    digitalWrite(HEART_PUMP, LOW);
+    delay(500);                // longer rest before next heartbeat
+    await_heart_low();
+  }
+
   Serial.println("HEART_PUMPED");
 }
 
 void stand_sit(int input){ //0: change_toggle, 1: stand, -1: sit
   bool stand = input == 0 ? !isStanding : input == 1;
 
-  LLegServo.angleDistance(isStanding? 70 : 0);
-  RLegServo.angleDistance(isStanding? 70 : 0);
+  LLegServo.angleDistance(isStanding? STAND_OFFSET-FOAM_OFFSET : 0);
+  RLegServo.angleDistance(isStanding? STAND_OFFSET-FOAM_OFFSET : 0);
   delay(200);
   int nSteps = 40;
   if(isStanding!=stand){
-    float startAngle = isStanding? 70.0 : 0.0;
-    float endAngle = isStanding? 0.0 : 70.0;
+    float startAngle = isStanding? float(STAND_OFFSET-FOAM_OFFSET) : 0.0;
+    float endAngle = isStanding? 0.0 :float(STAND_OFFSET-FOAM_OFFSET);
     for (int i = 0; i < nSteps; i++) {
       LLegServo.sigmoid(startAngle,endAngle,i);
       RLegServo.sigmoid(startAngle,endAngle,i);
@@ -198,13 +230,14 @@ void inputs() {
       lowBattCounter++;
       if(lowBattCounter > 5){
         lowBattCounter = 0;
-        Serial.println("LOW_BATT");
+        //Serial.println("LOW_BATT"); //Add this functionality if a working voltage sensor is done
       }
       lastPrint = now;
     }
   }
   if(heartPressed && !prevHeartPressed){
     Serial.println("HEART_PRESSED");
+    HeartPump();
   }
   prevHeartPressed = heartPressed;
 

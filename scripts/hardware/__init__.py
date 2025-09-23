@@ -1,1 +1,1 @@
-from .serial_communication import sendCommand, background_process
+from .serial_communication import sendCommand, background_process, emoji_to_command, set_BunnyDriver

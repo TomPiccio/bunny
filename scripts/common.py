@@ -26,7 +26,6 @@ def shutDownProcess():
 def get_power_state():
     return power_state
 
-def set_power_state(value : bool):
-    global power_state
-    power_state = value
+def get_RPiActive():
+    return RPiActive
 

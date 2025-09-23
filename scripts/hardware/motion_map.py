@@ -96,5 +96,5 @@ def emoji_to_motion_map(emoji: str):
     else:
         _top_motion_map = MotionMap.IDLE
     #TODO: temporary default
-    _bottom_motion_map = None
+    _bottom_motion_map = BottomMotionMap.IDLE
     return _top_motion_map, _bottom_motion_map
