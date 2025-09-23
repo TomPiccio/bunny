@@ -18,6 +18,8 @@ Open the terminal and run the following after replacing the <ip-address> to the 
 sudo apt update
 sudo apt install chromium-browser chromium-chromedriver
 sudo usermod -a -G dialout $USER
+chmod +x setup.sh
+./setup.sh
 setup.bat
 ssh-copy-id -i ~/.ssh/bunny_server.pub root@<ip-address>
 ```
