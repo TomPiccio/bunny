@@ -106,7 +106,10 @@ def check_ports():
         return
 
     for port in ports:
-        match = re.search(r'VID:PID=([0-9A-Fa-f]+:[0-9A-Fa-f]+)', port.hwid).group(1)
+        port_hwid = re.search(r'VID:PID=([0-9A-Fa-f]+:[0-9A-Fa-f]+)', port.hwid)
+        if not port_hwid:
+            continue
+        match = port_hwid.group(1)
         for device in Devices.keys():
             if Devices[device]["serial"] is None:
                 for id in Devices[device]["ids"]:

@@ -23,14 +23,15 @@ logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__fi
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, html_file_path, *args, **kwargs):
-        super().__init__(*args, directory=html_file_path, **kwargs)
+    def __init__(self, request, client_address, server, **kwargs):
+        home_dir = os.path.expanduser("~")
+        directory = f"{home_dir}/Desktop/bunny/static"  # must be a folder
+        super().__init__(request, client_address, server, directory=directory, **kwargs)
 
 class BunnyDriver:
     def __init__(self):
         self.PORT = 8006
-        self.html_file_path = os.path.join(os.path.dirname(__file__),\
-                                           r"../../xiaozhi-esp32-server/main/xiaozhi-server/test/test_page.html")
+        self.html_file_path = os.path.join(os.path.dirname(__file__),"..","..",r"xiaozhi-esp32-server/main/xiaozhi-server/test/test_page.html")
         self.chromedriver_path = r"/usr/bin/chromedriver"
         self.chrome_binary_path = r"/usr/bin/chromium"
         # When using PC instead of RPi
@@ -50,8 +51,8 @@ class BunnyDriver:
     @staticmethod
     def config_parsing():
         _config = ConfigParser(interpolation=ExtendedInterpolation())
-        config_path = os.path.join(os.path.dirname(__file__),r"..\..\config.ini")
-        logger.info(f"config.ini exists? {os.path.exists(config_path)}")
+        config_path = os.path.join(os.path.dirname(__file__), r"../../config.ini")
+        logger.info(f"config.ini exists? {os.path.exists(config_path)} : {config_path}")
         _config.read(config_path)
         section = _config["Default"]
         _ip_server = section["ip_server"]
@@ -82,7 +83,9 @@ class BunnyDriver:
             options = Options()
             options.binary_location = self.chrome_binary_path
             options.add_argument("--no-sandbox")
-            #options.add_argument("--user-data-dir={/home/bmopi/.config/chromium/SeleniumProfile}")
+            home_dir = os.path.expanduser("~")
+            profile_path = os.path.join(home_dir, ".config", "chromium", "SeleniumProfile")
+            options.add_argument(f"--user-data-dir={profile_path}")
             service = Service(self.chromedriver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
 
@@ -115,7 +118,7 @@ class BunnyDriver:
             self.driver.execute_script("arguments[0].disabled = false;", button)
         except:
             pass
-        if button_text is None or button.text == button_text:
+        if button_text is None or button_text in button.text:
             button.click()
             time.sleep(0.5)
         elif button_text is not None:
