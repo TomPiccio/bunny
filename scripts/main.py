@@ -114,7 +114,7 @@ else:
     logger.warning("No Wi-Fi, starting setup hotspot...")
     os.system("systemctl start hostapd")
     os.system("systemctl start dnsmasq")
-    os.system("cd {home_dir}/bunny")
+    os.system("cd {home_dir}/Desktop/bunny")
     os.system("source .venv/bin/activate")
-    os.system(f"python {home_dir}/bunny/scripts/wifi_setup.py")
+    os.system(f"python {home_dir}/Desktop/bunny/scripts/wifi_setup.py")
 
