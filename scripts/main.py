@@ -18,7 +18,7 @@ ssh_dir = os.path.join(home_dir, ".ssh")
 key_path = os.path.join(ssh_dir, "bunny_server")
 passphrase = "bunny_init"
 _config = ConfigParser()
-_config.read("../config.ini")
+_config.read(os.path.join(os.path.dirname(__file__),"../config.ini"))
 section = _config["Default"]
 host = section["ip_server"]
 username = "root"

@@ -25,7 +25,7 @@ logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__fi
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, request, client_address, server, **kwargs):
         home_dir = os.path.expanduser("~")
-        directory = f"{home_dir}/Desktop/bunny/static"  # must be a folder
+        directory = f"{home_dir}/Desktop/bunny/xiaozhi-esp32-server/main/xiaozhi-server/test"  # must be a folder
         super().__init__(request, client_address, server, directory=directory, **kwargs)
 
 class BunnyDriver:
@@ -84,8 +84,8 @@ class BunnyDriver:
             options.binary_location = self.chrome_binary_path
             options.add_argument("--no-sandbox")
             home_dir = os.path.expanduser("~")
-            profile_path = os.path.join(home_dir, ".config", "chromium", "SeleniumProfile")
-            options.add_argument(f"--user-data-dir={profile_path}")
+            profile_path = "--user-data-dir={"+os.path.join(home_dir, ".config", "chromium", "SeleniumProfile")+"}"
+            options.add_argument(profile_path)
             service = Service(self.chromedriver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
 

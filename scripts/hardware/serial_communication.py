@@ -114,7 +114,7 @@ def check_ports():
             if Devices[device]["serial"] is None:
                 for id in Devices[device]["ids"]:
                     if match == id:
-                        if Devices[device]["port"] == None:
+                        if Devices[device]["port"] is None:
                             Devices[device]["port"] = port.device
                             break
                 else:
