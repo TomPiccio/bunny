@@ -112,6 +112,9 @@ if has_internet():
 
 else:
     logger.warning("No Wi-Fi, starting setup hotspot...")
+    subprocess.Popen(["sudo", "systemctl", "stop", "hostapd"])
+    subprocess.Popen(["sudo", "systemctl", "stop", "dnsmasq"])
+
     subprocess.Popen(["sudo", "hostapd", "/etc/hostapd/hostapd.conf"])
     subprocess.Popen(["sudo", "dnsmasq", "-C", "/etc/dnsmasq.conf"])
 
