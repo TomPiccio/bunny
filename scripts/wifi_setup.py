@@ -51,3 +51,6 @@ network={{
     os.system("sync")
     os.system("reboot")
     return "Saved! Rebooting..."
+
+def run_flask_wifi_setup():
+    app.run(host="0.0.0.0", port=80)

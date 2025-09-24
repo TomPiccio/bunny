@@ -6,7 +6,7 @@ import paramiko
 import subprocess
 from configparser import ConfigParser
 from utils import setup_logger
-from wifi_setup import has_internet
+from wifi_setup import has_internet, run_flask_wifi_setup
 import time
 import os
 
@@ -114,7 +114,10 @@ else:
     logger.warning("No Wi-Fi, starting setup hotspot...")
     os.system("systemctl start hostapd")
     os.system("systemctl start dnsmasq")
-    os.system("cd {home_dir}/Desktop/bunny")
-    os.system("source .venv/bin/activate")
-    os.system(f"python {home_dir}/Desktop/bunny/scripts/wifi_setup.py")
+
+    wifi_setup_thread = Thread(target=run_flask_wifi_setup, daemon=True)
+    wifi_setup_thread.start()
+
+    # Optionally wait here for Flask to finish (or monitor other stuff)
+    wifi_setup_thread.join()
 

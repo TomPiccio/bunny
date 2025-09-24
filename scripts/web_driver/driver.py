@@ -212,7 +212,6 @@ class BunnyDriver:
             elif ":" in _text.split("]")[-1]:
                 if not "undefined" in _text:
                     logger.info(_text.split(":")[-1])
-                    self.toggle_recording(False)
             self.prev_start = self.start
             self.last_used = time.time()
         except Exception as _e:
