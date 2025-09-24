@@ -112,8 +112,8 @@ if has_internet():
 
 else:
     logger.warning("No Wi-Fi, starting setup hotspot...")
-    os.system("systemctl start hostapd")
-    os.system("systemctl start dnsmasq")
+    subprocess.Popen(["sudo", "hostapd", "/etc/hostapd/hostapd.conf"])
+    subprocess.Popen(["sudo", "dnsmasq", "-C", "/etc/dnsmasq.conf"])
 
     wifi_setup_thread = Thread(target=run_flask_wifi_setup, daemon=True)
     wifi_setup_thread.start()
