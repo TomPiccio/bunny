@@ -5,7 +5,7 @@ from hardware import background_process, set_BunnyDriver
 import paramiko
 import subprocess
 from configparser import ConfigParser
-from utils import setup_logger
+from utils import *
 import time
 import os
 
@@ -64,6 +64,7 @@ def run_flask():
     app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
 # ---------- Main logic ----------
+
 _BunnyDriver = BunnyDriver()
 _BunnyDriver.init_driver()
 
