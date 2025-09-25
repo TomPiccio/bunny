@@ -1,17 +1,17 @@
 from flask_server import app, post_heartbeat as heartbeat_fn
+from hardware import background_process, set_BunnyDriver
+from configparser import ConfigParser
 from web_driver import BunnyDriver
 from threading import Thread
-from hardware import background_process, set_BunnyDriver
-import paramiko
-import subprocess
-from configparser import ConfigParser
 from utils import *
+import subprocess
+import paramiko
+import socket
 import time
 import os
 
 logger = setup_logger("logs")
 logger.info(f"Logger initialized inside ({os.path.splitext(os.path.basename(__file__))[0]}.py)")
-
 
 home_dir = os.path.expanduser("~")
 ssh_dir = os.path.join(home_dir, ".ssh")
@@ -22,6 +22,18 @@ _config.read(os.path.join(os.path.dirname(__file__),"../config.ini"))
 section = _config["Default"]
 host = section["ip_server"]
 username = "root"
+
+def has_wifi(_host="8.8.8.8", port=53, timeout=3):
+    """
+    Returns True if we can reach the internet (Google DNS by default).
+    """
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((_host, port))
+        return True
+    except socket.error:
+        _AudioPlayer.play(Audio.WIFI)
+        return False
 
 # --------- Check for running app.py ---------
 def count_app_py_processes():
@@ -64,42 +76,55 @@ def run_flask():
     app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
 
 # ---------- Main logic ----------
-
+_AudioPlayer = AudioPlayer()
 _BunnyDriver = BunnyDriver()
-_BunnyDriver.init_driver()
+_AudioPlayer.play(Audio.WAKEUP)
 
-# ---------- Main logic ----------
-if count_app_py_processes() == 0:
-    logger.info("No app.py processes found. Running SSH bunny command...")
+wifi_attempts = 0
+while not has_wifi() and wifi_attempts < 5:
+    wifi_attempts += 1
+    time.sleep(30)
 
-    # Run SSH first
-    ssh_thread = Thread(target=run_remote_bunny, daemon=True)
-    ssh_thread.start()
+if wifi_attempts < 5:
+
+    _BunnyDriver.init_driver()
+
+    # ---------- Main logic ----------
+    if count_app_py_processes() == 0:
+        logger.info("No app.py processes found. Running SSH bunny command...")
+
+        # Run SSH first
+        ssh_thread = Thread(target=run_remote_bunny, daemon=True)
+        ssh_thread.start()
+    else:
+        logger.warning("app.py is already running. Skipping SSH bunny execution.")
+
+    # Start other background threads
+    flask_thread = Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    logger.info("Flask Server started...")
+
+    heartbeat_thread = Thread(target=heartbeat_fn, daemon=True)
+    heartbeat_thread.start()
+
+    logger.info("Server Connection thread started...")
+    set_BunnyDriver(_BunnyDriver)
+    serial_thread = Thread(target=background_process, daemon=True)
+    serial_thread.start()
+
+    logger.info("Background process thread started...")
+
+    # await everything to connect
+    time.sleep(10)
+
+    # Now run BunnyDriver in the main thread (GUI needs this)
+    try:
+        _AudioPlayer.play(Audio.READY)
+        _BunnyDriver.execute()  # This blocks, runs forever with Selenium GUI
+    except KeyboardInterrupt:
+        _AudioPlayer.play(Audio.ERROR)
+        print("Main program exiting...")
+        _BunnyDriver.close_driver()
 else:
-    logger.warning("app.py is already running. Skipping SSH bunny execution.")
-
-# Start other background threads
-flask_thread = Thread(target=run_flask, daemon=True)
-flask_thread.start()
-
-logger.info("Flask Server started...")
-
-heartbeat_thread = Thread(target=heartbeat_fn, daemon=True)
-heartbeat_thread.start()
-
-logger.info("Server Connection thread started...")
-set_BunnyDriver(_BunnyDriver)
-serial_thread = Thread(target=background_process, daemon=True)
-serial_thread.start()
-
-logger.info("Background process thread started...")
-
-time.sleep(20)
-#await everything to connect
-
-# Now run BunnyDriver in the main thread (GUI needs this)
-try:
-    _BunnyDriver.execute()  # This blocks, runs forever with Selenium GUI
-except KeyboardInterrupt:
-    print("Main program exiting...")
-    _BunnyDriver.close_driver()
+    _AudioPlayer.play(Audio.SLEEP)

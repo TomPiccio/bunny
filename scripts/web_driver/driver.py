@@ -12,10 +12,12 @@ import time
 import sys
 import os
 
+from scripts.utils import AudioPlayer
+
 if __name__ == "__main__" or os.path.dirname(sys.argv[0])==os.path.dirname(__file__):
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils import setup_logger
+from utils import *
 from hardware import emoji_to_command
 
 logger = setup_logger("logs")
@@ -47,6 +49,7 @@ class BunnyDriver:
         self.successful_launch = False
         self.is_connected = False
         self.last_used = 0
+        self._AudioPlayer = AudioPlayer()
 
     @staticmethod
     def config_parsing():
@@ -259,10 +262,11 @@ class BunnyDriver:
                     if time.time() - self.last_used > 90.0:
                         #inactive for 1:30
                         self.toggle_recording(False)
+                        self._AudioPlayer.play(Audio.REST)
                     time.sleep(0.5)
             except KeyboardInterrupt as e:
+                self._AudioPlayer.play(Audio.ERROR)
                 self.close_driver()
         else:
+            self._AudioPlayer.play(Audio.ERROR)
             logger.error("Can't launch Bunny Driver Execute")
-
-#TODO: Play initial Audio

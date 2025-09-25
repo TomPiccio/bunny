@@ -1,26 +1,36 @@
-import pygame
 from random import randint
+from enum import Enum
+import pygame
 import os
+
+class Audio(Enum):
+    WAKEUP = "wakeup"
+    READY = "ready"
+    ERROR = "error"
+    WIFI = "wifi"
+    SLEEP = "sleep"
+    REST = "rest"
 
 class AudioPlayer:
     def __init__(self):
-        self.audios = ["wakeup","ready","error","wifi","sleep","rest"]
         self.directory = os.path.dirname(__file__)
+        pygame.mixer.init()
 
-    def play(self, audio_name: str):
-        if audio_name in self.audios:
-            choice = randint(1,3)
-            pygame.mixer.music.load(os.path.join(self.directory, f"{audio_name}_{choice}"))
+    def play(self, audio: Audio):
+        choice = randint(1, 3)
+        filename = f"{audio.value}_{choice}.mp3"
+        filepath = os.path.join(self.directory, filename)
+
+        if os.path.exists(filepath):
+            pygame.mixer.music.load(filepath)
             pygame.mixer.music.play()
             while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)  # keep alive until finished
+                pygame.time.Clock().tick(10)
         else:
-            print(f"Audio '{audio_name}' not found in library.")
+            print(f"❌ File not found: {filepath}")
 
 
 if __name__ == "__main__":
     # Example usage
-    library = AudioLibrary()
     player = AudioPlayer(library)
-
-    player.play("wakeup")
+    player.play(Audio.WAKEUP)
