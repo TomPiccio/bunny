@@ -19,7 +19,7 @@ class AudioPlayer:
     def play(self, audio: Audio):
         choice = randint(1, 3)
         filename = f"{audio.value}_{choice}.mp3"
-        filepath = os.path.join(self.directory, filename)
+        filepath = os.path.join(self.directory, "audios", filename)
 
         if os.path.exists(filepath):
             pygame.mixer.music.load(filepath)
