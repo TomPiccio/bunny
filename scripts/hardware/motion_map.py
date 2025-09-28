@@ -85,16 +85,22 @@ EMOJI_MAP = {
     "😏": ("confident",EmotionMap.AFFIRM),
 }
 
+previous_action = {"top": None, "bottom": None}
 def emoji_to_motion_map(emoji: str):
     _top_motion_map = None
     _bottom_motion_map = None
     if emoji in EMOJI_MAP:
         #Top Actions
         actions = EMOTION_TO_MOTION_MAP[EMOJI_MAP[emoji][1]]
+        random_attempt = 0
         _top_motion_map = choice(actions)
+        while previous_action["top"] == _top_motion_map and random_attempt < 3:
+            _top_motion_map = choice(actions)
+            random_attempt += 1
+        previous_action["top"] = _top_motion_map
         # TODO: Integrate with Bottom Arduino
+        _bottom_motion_map = BottomMotionMap.IDLE
     else:
         _top_motion_map = MotionMap.IDLE
-    #TODO: temporary default
-    _bottom_motion_map = BottomMotionMap.IDLE
+        _bottom_motion_map = BottomMotionMap.IDLE
     return _top_motion_map, _bottom_motion_map

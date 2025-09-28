@@ -15,7 +15,7 @@ import os
 if __name__ == "__main__" or os.path.dirname(sys.argv[0])==os.path.dirname(__file__):
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils import setup_logger
+from utils import *
 from hardware import emoji_to_command
 
 logger = setup_logger("logs")
@@ -47,6 +47,8 @@ class BunnyDriver:
         self.successful_launch = False
         self.is_connected = False
         self.last_used = 0
+        self._AudioPlayer = AudioPlayer()
+        self.active = False
 
     @staticmethod
     def config_parsing():
@@ -142,6 +144,7 @@ class BunnyDriver:
                 self.initial_navigation()
                 self.send_message("你好")
             click_toggle()
+            self.active = True
         else:
             click_toggle()
 
@@ -212,7 +215,6 @@ class BunnyDriver:
             elif ":" in _text.split("]")[-1]:
                 if not "undefined" in _text:
                     logger.info(_text.split(":")[-1])
-                    self.toggle_recording(False)
             self.prev_start = self.start
             self.last_used = time.time()
         except Exception as _e:
@@ -241,6 +243,7 @@ class BunnyDriver:
     def execute(self):
         if self.successful_launch:
             try:
+                self.active = True
                 self.last_used = time.time()
                 self.initial_navigation()
                 self.toggle_recording(True)
@@ -256,13 +259,18 @@ class BunnyDriver:
                             self.process_text(text)
                             self.last_dt = ts
                     self.clear_processed_logs(50)
-                    if time.time() - self.last_used > 90.0:
+                    if time.time() - self.last_used > 90.0 and self.active:
                         #inactive for 1:30
                         self.toggle_recording(False)
+                        self._AudioPlayer.play(Audio.REST)
+                        self.active = False
+                        self.last_used = time.time()
+                    elif time.time() - self.last_used > 90.0:
+                        self.last_used = time.time()
                     time.sleep(0.5)
             except KeyboardInterrupt as e:
+                self._AudioPlayer.play(Audio.ERROR)
                 self.close_driver()
         else:
+            self._AudioPlayer.play(Audio.ERROR)
             logger.error("Can't launch Bunny Driver Execute")
-
-#TODO: Play initial Audio
