@@ -60,7 +60,7 @@ EMOTION_TO_MOTION_MAP = {
     EmotionMap.COMFORT: [MotionMap.PET, MotionMap.SAD_SHAKE, MotionMap.BEND_HEAD, MotionMap.SLOW_NOD]
 }
 
-
+#Based on the xiaozhi-esp32-server\main\xiaozhi-server\core\utils\textUtils.py
 EMOJI_MAP = {
     "😂": ("laughing",EmotionMap.HAPPY),
     "😭": ("crying",EmotionMap.SAD),
