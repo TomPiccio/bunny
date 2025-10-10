@@ -283,9 +283,11 @@ Write this into said file:
 [Desktop Entry]
 Type=Application
 Name=Bunny
-Exec=/home/pi/Desktop/bunny/.venv/bin/python /home/pi/Desktop/bunny/scripts/main.py
+Exec=/home/bmopi/Desktop/bunny/.venv/bin/python /home/bmopi/Desktop/bunny/scripts/main.py
 StartupNotify=false
 Terminal=true
 ```
+
+> Note: `bmopi` is the username of the RPi. Change it accordingly.
 
 Press `Ctrl+O -> Save` and `Ctrl+X -> Exit`
